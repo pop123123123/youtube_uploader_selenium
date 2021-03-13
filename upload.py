@@ -17,6 +17,9 @@ if __name__ == "__main__":
     parser.add_argument("-t",
                         "--thumbnail",
                         help='Path to the thumbnail image',)
+    parser.add_argument("-c",
+                        "--cookies",
+                        help='Path to the cookies folder',)
     parser.add_argument("--meta", help='Path to the JSON file with metadata')
     args = parser.parse_args()
-    main(args.video, args.meta, args.thumbnail)
+    main(args.video, args.meta, args.thumbnail, args.cookies)

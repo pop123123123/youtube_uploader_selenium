@@ -24,12 +24,14 @@ class YouTubeUploader:
     """A class for uploading videos on YouTube via Selenium using metadata JSON file
     to extract its title, description etc"""
 
-    def __init__(self, video_path: str, metadata_json_path: Optional[str] = None, thumbnail_path: Optional[str] = None) -> None:
+    def __init__(self, video_path: str, metadata_json_path: Optional[str] = None, thumbnail_path: Optional[str] = None, cookies_path: Optional[str] = None) -> None:
         self.video_path = video_path
         self.thumbnail_path = thumbnail_path
         self.metadata_dict = load_metadata(metadata_json_path)
         current_working_dir = str(Path.cwd())
-        self.browser = Firefox(current_working_dir, current_working_dir)
+        if cookies_path is None:
+            cookies_path = current_working_dir
+        self.browser = Firefox(cookies_path, current_working_dir)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
         self.__validate_inputs()
