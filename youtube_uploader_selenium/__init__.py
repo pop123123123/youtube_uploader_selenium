@@ -6,9 +6,11 @@ from selenium_firefox.firefox import Firefox, By, Keys
 from collections import defaultdict
 import json
 import time
+import re
 from .Constant import *
 from pathlib import Path
 import logging
+from selenium.webdriver.common.action_chains import ActionChains
 
 logging.basicConfig()
 
@@ -19,41 +21,16 @@ def load_metadata(metadata_json_path: Optional[str] = None) -> DefaultDict[str, 
     with open(metadata_json_path) as metadata_json_file:
         return defaultdict(str, json.load(metadata_json_file))
 
-
-class YouTubeUploader:
-    """A class for uploading videos on YouTube via Selenium using metadata JSON file
-    to extract its title, description etc"""
-
-    def __init__(self, video_path: str, metadata_json_path: Optional[str] = None, thumbnail_path: Optional[str] = None, cookies_path: Optional[str] = None) -> None:
-        self.video_path = video_path
-        self.thumbnail_path = thumbnail_path
-        self.metadata_dict = load_metadata(metadata_json_path)
+class YoutubeWorker:
+    def __init__(self, cookies_path: Optional[str] = None) -> None:
         current_working_dir = str(Path.cwd())
         if cookies_path is None:
             cookies_path = current_working_dir
         self.browser = Firefox(cookies_path, current_working_dir)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
-        self.__validate_inputs()
 
-    def __validate_inputs(self):
-        if not self.metadata_dict[Constant.VIDEO_TITLE]:
-            self.logger.warning("The video title was not found in a metadata file")
-            self.metadata_dict[Constant.VIDEO_TITLE] = Path(self.video_path).stem
-            self.logger.warning("The video title was set to {}".format(Path(self.video_path).stem))
-        if not self.metadata_dict[Constant.VIDEO_DESCRIPTION]:
-            self.logger.warning("The video description was not found in a metadata file")
-
-    def upload(self):
-        try:
-            self.__login()
-            return self.__upload()
-        except Exception as e:
-            print(e)
-            self.__quit()
-            raise
-
-    def __login(self):
+    def login(self):
         self.browser.get(Constant.YOUTUBE_URL)
         time.sleep(Constant.USER_WAITING_TIME)
 
@@ -67,6 +44,95 @@ class YouTubeUploader:
             self.browser.get(Constant.YOUTUBE_URL)
             time.sleep(Constant.USER_WAITING_TIME)
             self.browser.save_cookies()
+
+    def quit(self):
+        self.browser.driver.quit()
+
+class YouTubeScheduler(YoutubeWorker):
+
+    def get_schedule(self):
+        try:
+            self.login()
+            return self.__get_schedule()
+        except Exception as e:
+            print(e)
+            self.quit()
+            raise
+
+    def __get_schedule(self) -> list:
+        self.browser.get(Constant.YOUTUBE_URL)
+        time.sleep(Constant.USER_WAITING_TIME)
+        self.browser.get('https://studio.youtube.com/')
+        time.sleep(Constant.USER_WAITING_TIME)
+        base_url = self.browser.driver.current_url
+        suffix = '/videos/upload?filter=[{"name"%3A"VISIBILITY"%2C"value"%3A["HAS_SCHEDULE"]}]&sort={"columnType"%3A"date"%2C"sortOrder"%3A"DESCENDING"}'
+        self.browser.get(base_url + suffix)
+        time.sleep(Constant.USER_WAITING_TIME)
+
+        LIST_XPATH = '/html/body/ytcp-app/ytcp-entity-page/div/div/main/div/ytcp-animatable[3]/ytcp-content-section/ytcp-video-section/ytcp-video-section-content/div'
+        TO_HOVER_CSS = 'ytcp-video-row.style-scope span.ytcp-video-row'
+        HOVER_CSS = 'ytcp-paper-tooltip-body.ytcp-paper-tooltip-placeholder > p:nth-child(2) > yt-formatted-string:nth-child(1)'
+        DAY_CSS = 'ytcp-video-row.style-scope div.ytcp-video-row.column-sorted'
+        TIME_REGEX = r"\d\d:\d\d"
+
+        videoList = self.browser.find(By.XPATH, LIST_XPATH)
+        hover_list = self.browser.find_all(By.CSS_SELECTOR, TO_HOVER_CSS, videoList)
+        day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
+
+        scheduled_texts = []
+        for hoverElement, dayElement in zip(hover_list, day_list):
+            actions = ActionChains(self.browser.driver)
+            actions.move_to_element(hoverElement)
+            actions.perform()
+            time.sleep(Constant.USER_WAITING_TIME)
+
+            hover = self.browser.find(By.CSS_SELECTOR, HOVER_CSS)
+            t = re.search(TIME_REGEX, hover.text).group(0)
+
+            d = dayElement.text.split('\n')[0]
+            scheduled_texts.append((d, t))
+
+        suffix = '/videos/upload?filter=[{"name"%3A"VISIBILITY"%2C"value"%3A["PUBLIC"]}]&sort={"columnType"%3A"date"%2C"sortOrder"%3A"DESCENDING"}'
+        self.browser.get(base_url + suffix)
+        time.sleep(Constant.USER_WAITING_TIME)
+
+
+        videoList = self.browser.find(By.XPATH, LIST_XPATH)
+        day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
+        public_texts = [e.text.split('\n')[0] for e in day_list]
+
+        print(*scheduled_texts, 'PUBLIC', *public_texts, sep='\n')
+
+        self.quit()
+
+
+class YouTubeUploader(YoutubeWorker):
+    """A class for uploading videos on YouTube via Selenium using metadata JSON file
+    to extract its title, description etc"""
+
+    def __init__(self, video_path: str, metadata_json_path: Optional[str] = None, thumbnail_path: Optional[str] = None, cookies_path: Optional[str] = None) -> None:
+        super().__init__(cookies_path)
+        self.video_path = video_path
+        self.thumbnail_path = thumbnail_path
+        self.metadata_dict = load_metadata(metadata_json_path)
+        self.__validate_inputs()
+
+    def __validate_inputs(self):
+        if not self.metadata_dict[Constant.VIDEO_TITLE]:
+            self.logger.warning("The video title was not found in a metadata file")
+            self.metadata_dict[Constant.VIDEO_TITLE] = Path(self.video_path).stem
+            self.logger.warning("The video title was set to {}".format(Path(self.video_path).stem))
+        if not self.metadata_dict[Constant.VIDEO_DESCRIPTION]:
+            self.logger.warning("The video description was not found in a metadata file")
+
+    def upload(self):
+        try:
+            self.login()
+            return self.__upload()
+        except Exception as e:
+            print(e)
+            self.quit()
+            raise
 
     def __write_in_field(self, field, string, select_all=False):
         field.click()
@@ -155,7 +221,7 @@ class YouTubeUploader:
         self.logger.debug("Published the video with video_id = {}".format(video_id))
         time.sleep(Constant.USER_WAITING_TIME)
         self.browser.get(Constant.YOUTUBE_URL)
-        self.__quit()
+        self.quit()
         return True, video_id
 
     def __get_video_id(self) -> Optional[str]:
@@ -169,6 +235,3 @@ class YouTubeUploader:
             self.logger.warning(Constant.VIDEO_NOT_FOUND_ERROR)
             pass
         return video_id
-
-    def __quit(self):
-        self.browser.driver.quit()
