@@ -11,6 +11,7 @@ from .Constant import *
 from pathlib import Path
 import logging
 from selenium.webdriver.common.action_chains import ActionChains
+from dateparser import DateDataParser
 
 logging.basicConfig()
 
@@ -68,6 +69,8 @@ class YouTubeScheduler(YoutubeWorker):
         suffix = '/videos/upload?filter=[{"name"%3A"VISIBILITY"%2C"value"%3A["HAS_SCHEDULE"]}]&sort={"columnType"%3A"date"%2C"sortOrder"%3A"DESCENDING"}'
         self.browser.get(base_url + suffix)
         time.sleep(Constant.USER_WAITING_TIME)
+        lang = self.browser.find(By.TAG_NAME, 'html').get_attribute('lang').split('-')[0]
+        ddp = DateDataParser(languages=[lang])
 
         LIST_XPATH = '/html/body/ytcp-app/ytcp-entity-page/div/div/main/div/ytcp-animatable[3]/ytcp-content-section/ytcp-video-section/ytcp-video-section-content/div'
         TO_HOVER_CSS = 'ytcp-video-row.style-scope span.ytcp-video-row'
@@ -79,7 +82,7 @@ class YouTubeScheduler(YoutubeWorker):
         hover_list = self.browser.find_all(By.CSS_SELECTOR, TO_HOVER_CSS, videoList)
         day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
 
-        scheduled_texts = []
+        scheduled_dates = []
         for hoverElement, dayElement in zip(hover_list, day_list):
             actions = ActionChains(self.browser.driver)
             actions.move_to_element(hoverElement)
@@ -90,7 +93,8 @@ class YouTubeScheduler(YoutubeWorker):
             t = re.search(TIME_REGEX, hover.text).group(0)
 
             d = dayElement.text.split('\n')[0]
-            scheduled_texts.append((d, t))
+            date = ddp.get_date_data(f'{d} {t}')['date_obj'].isoformat()
+            scheduled_dates.append(date)
 
         suffix = '/videos/upload?filter=[{"name"%3A"VISIBILITY"%2C"value"%3A["PUBLIC"]}]&sort={"columnType"%3A"date"%2C"sortOrder"%3A"DESCENDING"}'
         self.browser.get(base_url + suffix)
@@ -99,9 +103,14 @@ class YouTubeScheduler(YoutubeWorker):
 
         videoList = self.browser.find(By.XPATH, LIST_XPATH)
         day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
-        public_texts = [e.text.split('\n')[0] for e in day_list]
+        public_dates = [ddp.get_date_data(e.text.split('\n')[0])['date_obj'].isoformat() for e in day_list]
 
-        print(*scheduled_texts, 'PUBLIC', *public_texts, sep='\n')
+        dates = {
+            "scheduled": scheduled_dates,
+            "public": public_dates,
+        }
+
+        print(json.dumps(dates))
 
         self.quit()
 
