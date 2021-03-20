@@ -1,8 +1,11 @@
 from youtube_uploader_selenium import YouTubeScheduler
-import sys
-cookies_path = None
-if len(sys.argv) > 1:
-  cookies_path = sys.argv[1]
+import sys, json
 
-uploader = YouTubeScheduler(cookies_path)
-uploader.get_schedule()
+time_zone = sys.argv[1]
+
+cookies_path = None
+if len(sys.argv) > 2:
+  cookies_path = sys.argv[2]
+
+uploader = YouTubeScheduler(time_zone, cookies_path=cookies_path)
+print(json.dumps(uploader.get_schedule()))

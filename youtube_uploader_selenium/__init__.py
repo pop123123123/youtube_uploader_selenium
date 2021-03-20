@@ -50,6 +50,9 @@ class YoutubeWorker:
         self.browser.driver.quit()
 
 class YouTubeScheduler(YoutubeWorker):
+    def __init__(self, timezone: str, cookies_path: Optional[str] = None) -> None:
+        super().__init__(cookies_path)
+        self.timezone = timezone
 
     def get_schedule(self):
         try:
@@ -70,7 +73,8 @@ class YouTubeScheduler(YoutubeWorker):
         self.browser.get(base_url + suffix)
         time.sleep(Constant.USER_WAITING_TIME)
         lang = self.browser.find(By.TAG_NAME, 'html').get_attribute('lang').split('-')[0]
-        ddp = DateDataParser(languages=[lang])
+        settings = {'TIMEZONE': self.timezone, 'RETURN_AS_TIMEZONE_AWARE': True}
+        ddp = DateDataParser(languages=[lang], settings=settings)
 
         LIST_XPATH = '/html/body/ytcp-app/ytcp-entity-page/div/div/main/div/ytcp-animatable[3]/ytcp-content-section/ytcp-video-section/ytcp-video-section-content/div'
         TO_HOVER_CSS = 'ytcp-video-row.style-scope span.ytcp-video-row'
@@ -83,23 +87,23 @@ class YouTubeScheduler(YoutubeWorker):
         day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
 
         scheduled_dates = []
-        for hoverElement, dayElement in zip(hover_list, day_list):
-            actions = ActionChains(self.browser.driver)
-            actions.move_to_element(hoverElement)
-            actions.perform()
-            time.sleep(Constant.USER_WAITING_TIME)
+        if hover_list is not None and day_list is not None:
+            for hoverElement, dayElement in zip(hover_list, day_list):
+                actions = ActionChains(self.browser.driver)
+                actions.move_to_element(hoverElement)
+                actions.perform()
+                time.sleep(Constant.USER_WAITING_TIME)
 
-            hover = self.browser.find(By.CSS_SELECTOR, HOVER_CSS)
-            t = re.search(TIME_REGEX, hover.text).group(0)
+                hover = self.browser.find(By.CSS_SELECTOR, HOVER_CSS)
+                t = re.search(TIME_REGEX, hover.text).group(0)
 
-            d = dayElement.text.split('\n')[0]
-            date = ddp.get_date_data(f'{d} {t}')['date_obj'].isoformat()
-            scheduled_dates.append(date)
+                d = dayElement.text.split('\n')[0]
+                date = ddp.get_date_data(f'{d} {t}')['date_obj'].isoformat()
+                scheduled_dates.append(date)
 
         suffix = '/videos/upload?filter=[{"name"%3A"VISIBILITY"%2C"value"%3A["PUBLIC"]}]&sort={"columnType"%3A"date"%2C"sortOrder"%3A"DESCENDING"}'
         self.browser.get(base_url + suffix)
         time.sleep(Constant.USER_WAITING_TIME)
-
 
         videoList = self.browser.find(By.XPATH, LIST_XPATH)
         day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
@@ -110,9 +114,8 @@ class YouTubeScheduler(YoutubeWorker):
             "public": public_dates,
         }
 
-        print(json.dumps(dates))
-
         self.quit()
+        return dates
 
 
 class YouTubeUploader(YoutubeWorker):
