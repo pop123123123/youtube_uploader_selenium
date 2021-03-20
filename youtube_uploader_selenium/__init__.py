@@ -204,9 +204,38 @@ class YouTubeUploader(YoutubeWorker):
         self.browser.find(By.ID, Constant.NEXT_BUTTON).click()
         self.logger.debug('Clicked another {}'.format(Constant.NEXT_BUTTON))
 
-        public_main_button = self.browser.find(By.NAME, Constant.PUBLIC_BUTTON)
-        self.browser.find(By.ID, Constant.RADIO_LABEL, public_main_button).click()
-        self.logger.debug('Made the video {}'.format(Constant.PUBLIC_BUTTON))
+        # public_main_button = self.browser.find(By.NAME, Constant.PUBLIC_BUTTON)
+        # self.browser.find(By.ID, Constant.RADIO_LABEL, public_main_button).click()
+        # self.logger.debug('Made the video {}'.format(Constant.PUBLIC_BUTTON))
+        schedule_main_button = self.browser.find(By.NAME, Constant.SCHEDULE_BUTTON)
+        self.browser.find(By.ID, Constant.RADIO_LABEL, schedule_main_button).click()
+        self.logger.debug('Clicked schedule')
+
+        # Opoen date widget
+        self.browser.find(By.XPATH, Constant.SCHEDULE_DATE_DROPDOWN).click()
+        schedule_date_field = self.browser.find(By.XPATH, Constant.SCHEDULE_DATE_INPUT)
+        date = 'Mar 10, 2021'
+        self.__write_in_field(schedule_date_field, date, True)
+        schedule_date_field.send_keys(Keys.RETURN)
+        self.logger.debug('Set date to ' + date)
+        time.sleep(Constant.USER_WAITING_TIME)
+
+        # Open time widget
+        self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_DROPDOWN).click()
+        time.sleep(Constant.USER_WAITING_TIME)
+
+        t = '15:15'
+        def time_to_index(time):
+            h, m = map(int, time.split(':'))
+            return h * 4 + m // 15 + 1
+        n = time_to_index(t)
+        # time_list = self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_LIST)
+        time_element = self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_ELEMENT + f'[{n}]')
+        self.browser.driver.execute_script("arguments[0].scrollIntoView(true);", time_element)
+        time.sleep(0.5)
+        time_element.click()
+        self.logger.debug('Set time to ' + t)
+
 
         video_id = self.__get_video_id()
 

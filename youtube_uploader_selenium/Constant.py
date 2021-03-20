@@ -20,6 +20,11 @@ class Constant:
     TAGS_INPUT = 'text-input'
     NEXT_BUTTON = 'next-button'
     PUBLIC_BUTTON = 'PUBLIC'
+    SCHEDULE_BUTTON = 'SCHEDULE'
+    SCHEDULE_DATE_DROPDOWN = '/html/body/ytcp-uploads-dialog/tp-yt-paper-dialog/div/ytcp-animatable[1]/ytcp-uploads-review/div[2]/div[1]/ytcp-video-visibility-select/div[2]/ytcp-visibility-scheduler/div[1]/ytcp-datetime-picker/div/ytcp-text-dropdown-trigger[1]/ytcp-dropdown-trigger'
+    SCHEDULE_DATE_INPUT = '/html/body/ytcp-date-picker/tp-yt-paper-dialog/div/form/paper-input/paper-input-container/div[2]/div/iron-input/input'
+    SCHEDULE_TIME_DROPDOWN = '/html/body/ytcp-uploads-dialog/tp-yt-paper-dialog/div/ytcp-animatable[1]/ytcp-uploads-review/div[2]/div[1]/ytcp-video-visibility-select/div[2]/ytcp-visibility-scheduler/div[1]/ytcp-datetime-picker/div/ytcp-text-dropdown-trigger[2]/ytcp-dropdown-trigger/div'
+    SCHEDULE_TIME_ELEMENT = '/html/body/ytcp-time-of-day-picker/tp-yt-paper-dialog/tp-yt-paper-listbox/paper-item'
     VIDEO_URL_CONTAINER = "//span[@class='video-url-fadeable style-scope ytcp-video-info']"
     VIDEO_URL_ELEMENT = "//a[@class='style-scope ytcp-video-info']"
     HREF = 'href'
