@@ -3,8 +3,8 @@ from youtube_uploader_selenium import YouTubeUploader
 from typing import Optional
 
 
-def main(video_path: str, metadata_path: Optional[str] = None, thumbnail_path: Optional[str] = None):
-    uploader = YouTubeUploader(video_path, metadata_path, thumbnail_path)
+def main(video_path: str, metadata_path: Optional[str] = None, thumbnail_path: Optional[str] = None, cookies_path: Optional[str] = None):
+    uploader = YouTubeUploader(video_path, metadata_path, thumbnail_path, cookies_path)
     was_video_uploaded, video_id = uploader.upload()
     assert was_video_uploaded
 

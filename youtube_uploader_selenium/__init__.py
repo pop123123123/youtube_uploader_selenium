@@ -11,6 +11,7 @@ from .Constant import *
 from pathlib import Path
 import logging
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import ElementClickInterceptedException
 from dateparser import DateDataParser
 
 logging.basicConfig()
@@ -107,6 +108,8 @@ class YouTubeScheduler(YoutubeWorker):
 
         videoList = self.browser.find(By.XPATH, LIST_XPATH)
         day_list = self.browser.find_all(By.CSS_SELECTOR, DAY_CSS, videoList)
+        if day_list is None:
+            day_list = []
         public_dates = [ddp.get_date_data(e.text.split('\n')[0])['date_obj'].isoformat() for e in day_list]
 
         dates = {
@@ -150,7 +153,7 @@ class YouTubeUploader(YoutubeWorker):
         field.click()
         time.sleep(Constant.USER_WAITING_TIME)
         if select_all:
-            field.send_keys(Keys.COMMAND + 'a')
+            field.send_keys(Keys.CONTROL + 'a')
             time.sleep(Constant.USER_WAITING_TIME)
         field.send_keys(string)
 
@@ -160,6 +163,8 @@ class YouTubeUploader(YoutubeWorker):
         self.browser.get(Constant.YOUTUBE_UPLOAD_URL)
         time.sleep(Constant.USER_WAITING_TIME)
         absolute_video_path = str(Path.cwd() / self.video_path)
+        if self.browser.find(By.XPATH, Constant.INPUT_FILE_VIDEO) is None:
+            exit(11)
         self.browser.find(By.XPATH, Constant.INPUT_FILE_VIDEO).send_keys(absolute_video_path)
         self.logger.debug('Attached video {}'.format(self.video_path))
 
@@ -187,16 +192,24 @@ class YouTubeUploader(YoutubeWorker):
         self.browser.find(By.ID, Constant.RADIO_LABEL, kids_section).click()
         self.logger.debug('Selected \"{}\"'.format(Constant.NOT_MADE_FOR_KIDS_LABEL))
 
-        # Advanced options
-        self.browser.find(By.XPATH, Constant.MORE_BUTTON).click()
-        self.logger.debug('Clicked MORE OPTIONS')
+        if Constant.VIDEO_TAGS in self.metadata_dict:
+            # Advanced options
+            self.browser.find(By.ID, Constant.MORE_BUTTON_ID).click()
+            self.logger.debug('Clicked MORE OPTIONS')
 
-        tags_container = self.browser.find(By.XPATH,
-                                                    Constant.TAGS_INPUT_CONTAINER)
-        tags_field = self.browser.find(By.ID, Constant.TAGS_INPUT, element=tags_container)
-        self.__write_in_field(tags_field, ','.join(self.metadata_dict[Constant.VIDEO_TAGS]))
-        self.logger.debug(
-            'The tags were set to \"{}\"'.format(self.metadata_dict[Constant.VIDEO_TAGS]))
+            tags_container = self.browser.find(By.XPATH, Constant.TAGS_INPUT_CONTAINER)
+            tags_field = self.browser.find(By.ID, Constant.TAGS_INPUT, element=tags_container)
+            self.browser.driver.execute_script("arguments[0].scrollIntoView(true);", tags_container)
+            time.sleep(0.5)
+            try:
+                self.__write_in_field(tags_field, ','.join(self.metadata_dict[Constant.VIDEO_TAGS]))
+            except ElementClickInterceptedException as e:
+                clear_button = self.browser.find(By.ID, 'clear-button', element=tags_container)
+                clear_button.click()
+                time.sleep(0.5)
+                self.__write_in_field(tags_field, ','.join(self.metadata_dict[Constant.VIDEO_TAGS]))
+            self.logger.debug(
+                'The tags were set to \"{}\"'.format(self.metadata_dict[Constant.VIDEO_TAGS]))
 
         self.browser.find(By.ID, Constant.NEXT_BUTTON).click()
         self.logger.debug('Clicked {}'.format(Constant.NEXT_BUTTON))
@@ -204,37 +217,39 @@ class YouTubeUploader(YoutubeWorker):
         self.browser.find(By.ID, Constant.NEXT_BUTTON).click()
         self.logger.debug('Clicked another {}'.format(Constant.NEXT_BUTTON))
 
-        # public_main_button = self.browser.find(By.NAME, Constant.PUBLIC_BUTTON)
-        # self.browser.find(By.ID, Constant.RADIO_LABEL, public_main_button).click()
-        # self.logger.debug('Made the video {}'.format(Constant.PUBLIC_BUTTON))
+        self.browser.find(By.ID, Constant.NEXT_BUTTON).click()
+        self.logger.debug('Clicked another {}'.format(Constant.NEXT_BUTTON))
+
         schedule_main_button = self.browser.find(By.NAME, Constant.SCHEDULE_BUTTON)
         self.browser.find(By.ID, Constant.RADIO_LABEL, schedule_main_button).click()
         self.logger.debug('Clicked schedule')
 
-        # Opoen date widget
+        # Open date widget
         self.browser.find(By.XPATH, Constant.SCHEDULE_DATE_DROPDOWN).click()
-        schedule_date_field = self.browser.find(By.XPATH, Constant.SCHEDULE_DATE_INPUT)
-        date = 'Mar 10, 2021'
-        self.__write_in_field(schedule_date_field, date, True)
-        schedule_date_field.send_keys(Keys.RETURN)
-        self.logger.debug('Set date to ' + date)
-        time.sleep(Constant.USER_WAITING_TIME)
-
-        # Open time widget
-        self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_DROPDOWN).click()
-        time.sleep(Constant.USER_WAITING_TIME)
-
-        t = '15:15'
-        def time_to_index(time):
-            h, m = map(int, time.split(':'))
-            return h * 4 + m // 15 + 1
-        n = time_to_index(t)
-        # time_list = self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_LIST)
-        time_element = self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_ELEMENT + f'[{n}]')
-        self.browser.driver.execute_script("arguments[0].scrollIntoView(true);", time_element)
         time.sleep(0.5)
-        time_element.click()
-        self.logger.debug('Set time to ' + t)
+        schedule_date_field = self.browser.driver.switch_to.active_element
+
+        if 'schedule' in self.metadata_dict:
+            date = self.metadata_dict['schedule'][0]
+            self.__write_in_field(schedule_date_field, date, True)
+            schedule_date_field.send_keys(Keys.RETURN)
+            self.logger.debug('Set date to ' + date)
+            time.sleep(Constant.USER_WAITING_TIME)
+
+            # Open time widget
+            self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_DROPDOWN).click()
+            time.sleep(Constant.USER_WAITING_TIME)
+
+            t = self.metadata_dict['schedule'][1]
+            def time_to_index(time):
+                h, m = map(int, time.split(':'))
+                return h * 4 + m // 15 + 1
+            n = time_to_index(t)
+            time_element = self.browser.find(By.XPATH, Constant.SCHEDULE_TIME_ELEMENT + f'[{n}]')
+            self.browser.driver.execute_script("arguments[0].scrollIntoView(true);", time_element)
+            time.sleep(0.5)
+            time_element.click()
+            self.logger.debug('Set time to ' + t)
 
 
         video_id = self.__get_video_id()
