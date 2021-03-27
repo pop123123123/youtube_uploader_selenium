@@ -181,10 +181,17 @@ class YouTubeUploader(YoutubeWorker):
 
         video_description = self.metadata_dict[Constant.VIDEO_DESCRIPTION]
         if video_description:
-            description_container = self.browser.find(By.XPATH,
-                                                      Constant.DESCRIPTION_CONTAINER)
+            description_container = self.browser.find(By.ID, 'description-container')
             description_field = self.browser.find(By.ID, Constant.TEXTBOX, element=description_container)
-            self.__write_in_field(description_field, self.metadata_dict[Constant.VIDEO_DESCRIPTION])
+            description_field.click()
+            time.sleep(.5)
+            for _ in range(150):
+                description_field.send_keys(Keys.BACKSPACE)
+                time.sleep(.02)
+            time.sleep(0.5)
+            description_field.send_keys(self.metadata_dict[Constant.VIDEO_DESCRIPTION])
+            time.sleep(.5)
+
             self.logger.debug(
                 'The video description was set to \"{}\"'.format(self.metadata_dict[Constant.VIDEO_DESCRIPTION]))
 
