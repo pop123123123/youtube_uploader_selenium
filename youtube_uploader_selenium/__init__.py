@@ -153,9 +153,14 @@ class YouTubeUploader(YoutubeWorker):
         field.click()
         time.sleep(Constant.USER_WAITING_TIME)
         if select_all:
-            field.send_keys(Keys.CONTROL + 'a')
+            for _ in range(150):
+                description_field.send_keys(Keys.BACKSPACE)
+                time.sleep(.02)
+                description_field.send_keys(Keys.DELETE)
+                time.sleep(.02)
             time.sleep(Constant.USER_WAITING_TIME)
         field.send_keys(string)
+        time.sleep(Constant.USER_WAITING_TIME)
 
     def __upload(self) -> (bool, Optional[str]):
         self.browser.get(Constant.YOUTUBE_URL)
@@ -183,15 +188,7 @@ class YouTubeUploader(YoutubeWorker):
         if video_description:
             description_container = self.browser.find(By.ID, 'description-container')
             description_field = self.browser.find(By.ID, Constant.TEXTBOX, element=description_container)
-            description_field.click()
-            time.sleep(.5)
-            for _ in range(150):
-                description_field.send_keys(Keys.BACKSPACE)
-                time.sleep(.02)
-            time.sleep(0.5)
-            description_field.send_keys(self.metadata_dict[Constant.VIDEO_DESCRIPTION])
-            time.sleep(.5)
-
+            self.__write_in_field(description_field, self.metadata_dict[Constant.VIDEO_DESCRIPTION], select_all=True)
             self.logger.debug(
                 'The video description was set to \"{}\"'.format(self.metadata_dict[Constant.VIDEO_DESCRIPTION]))
 
