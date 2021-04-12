@@ -90,6 +90,8 @@ class YouTubeScheduler(YoutubeWorker):
         scheduled_dates = []
         if hover_list is not None and day_list is not None:
             for hoverElement, dayElement in zip(hover_list, day_list):
+                self.browser.driver.execute_script("arguments[0].scrollIntoView(true);", hoverElement)
+                time.sleep(.2)
                 actions = ActionChains(self.browser.driver)
                 actions.move_to_element(hoverElement)
                 actions.perform()
