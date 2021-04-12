@@ -156,9 +156,9 @@ class YouTubeUploader(YoutubeWorker):
         time.sleep(Constant.USER_WAITING_TIME)
         if select_all:
             for _ in range(150):
-                description_field.send_keys(Keys.BACKSPACE)
+                field.send_keys(Keys.BACKSPACE)
                 time.sleep(.02)
-                description_field.send_keys(Keys.DELETE)
+                field.send_keys(Keys.DELETE)
                 time.sleep(.02)
             time.sleep(Constant.USER_WAITING_TIME)
         field.send_keys(string)
